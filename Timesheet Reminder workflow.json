@@ -1,0 +1,522 @@
+{
+  "name": "Timesheet Reminder workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "chatId": "6461971913",
+        "text": "=```\n{{ $json.slotsLeft }} slots and {{ $json.daysLeft }} days left to reach your 10L goal.\n\nHello Prakash,\nInnovateIT Labs and your smile deserve your full focus.\nUse every slot with intention — each one brings you closer.\n```\n",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "MarkdownV2"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -896,
+        -112
+      ],
+      "id": "2e054124-2d74-4a13-be74-0a2c3b51398d",
+      "name": "Send a text message",
+      "webhookId": "0a0a1107-6f49-4cd2-ba5a-ced6672b0505",
+      "credentials": {
+        "telegramApi": {
+          "id": "U94KYvFJVXxyCTX2",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0,15,30,45 6-22 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1344,
+        -112
+      ],
+      "id": "a100b5e3-3388-4432-bfb6-328f7cd1e798",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8",
+          "mode": "list",
+          "cachedResultName": "Time Sheet New",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.date }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Quarter",
+              "lookupValue": "={{ $json.quarter }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -896,
+        -560
+      ],
+      "id": "489b816a-021f-43e2-9490-4aefbdae33e2",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IhMCIGJWsxGsjzwX",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the first input item\nconst item = $input.first().json;\n\n// Extract date safely (before \"T\")\nconst timestamp = item.timestamp || \"\";\nconst dateOnly = timestamp.includes(\"T\") ? timestamp.split(\"T\")[0] : timestamp;\n\n// Get hour as a number\nconst hour = parseInt(item.Hour, 10);\nlet quarter = null;\n\nswitch (hour) {\n  case 11:\n    quarter = \"Q1\";\n    break;\n  case 17:\n    quarter = \"Q2\";\n    break;\n  case 23:\n    quarter = \"Q3\";\n    break;\n  default:\n    quarter = \"NA\"; // fallback if no match\n}\n\nreturn [\n  {\n    json: {\n      date: dateOnly,\n      quarter,\n    \n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        -560
+      ],
+      "id": "d3807f2d-44ab-44e9-93ce-3769ec6aeb06",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect all rows (expects range rows like \"07.15 PM - 07.30 PM\\tTask\")\nconst rows = $input.all().map(item => {\n  const data = item.json;\n  const time = data.Time || data.Range || data['Time Range'] || '';\n  const task = data[\"Task Done\"] || data.Task || data.Description || '';\n  if (!time && Object.values(data).length === 1) return String(Object.values(data)[0]).trim();\n  return `${time}\\t${task}`.trim();\n});\n\n// Combine into a prompt string\nconst prompt = `You are my elder brother and mentor to Prakash. FOLLOW THIS EXACTLY.\n\nCore rule:\n- The rows provided are the exact SIX-HOUR timesheet to analyze. Do NOT attempt to detect or redefine the window.\n\nInput format:\n- Rows are RANGE format every 15 minutes, e.g. \"07.15 PM - 07.30 PM\\\\tWorked on N8N flow\".\n- Empty task cells = <b>Unknown</b>.\n- Accept both dot and colon time formats (07.15 PM or 07:15 PM). If a range crosses midnight treat end as next day.\n\nDurations & splitting:\n- Duration = explicit range end - start (do NOT invent extra time).\n- If a segment crosses sub-block boundaries, split its duration by actual overlap across the three 2-hour blocks inside this 6-hour period.\n- Round durations to nearest 5 minutes.\n\nClassification (strict):\n- <b>Productive</b>: explicit growth-aligned tasks (coding, client delivery, sales calls, proposals, paid work, focused learning tied to product/service).\n- <b>Wasted</b>: clear low-value leaks (social scrolling, unstructured long chats, idle browsing).\n- <b>Unknown</b>: vague/empty descriptions (\"\", \"working\", \"misc\").\n- Prefer Unknown unless clearly Productive or Wasted.\n\nBlocks (only these — no day buckets):\n- Split the supplied 6-hour period into three consecutive 2-hour sub-blocks: Block A (first 2h), Block B (middle 2h), Block C (last 2h).\n- Identify the highest-focus 2-hour block and the most-leaky 2-hour block.\n\nRequired output (produce exactly these 6 sections; keep lines short; Timesheet Summary must be LAST):\n1. <b>Insights</b> – 2–3 observations about this 6-hour input (patterns, energy, leaks).\n2. <b>Wins</b> – 1–2 things done well in this period.\n3. <b>Truth Check</b> – 1–2 honest weaknesses/time leaks in this period.\n4. <b>Action Plan (next 12h)</b> – 1–3 concrete, timed tasks (time-box each).\n5. <b>Brother’s Reminder</b> – one-line push linking effort → InnovateIT Labs + personal goal.\n6. <b>Timesheet Summary</b> (LAST) – For the entire 6-hour input and for each 2-hour Block (A/B/C) show:\n   - Total time (Hh Mm).\n   - Productive time (Hh Mm).\n   - Wasted time (Hh Mm).\n   - Unknown time (Hh Mm).\n   - Total entries counted (count).\n   - Chronological highlights: up to 5 exact rows from the input (format preserved: \"07.15 PM - 07.30 PM\\tTask\").\n   - Final one-line verdict: which 2-hour Block was highest-focus and which leaked time most.\n\nPrecision & edge cases:\n- Round totals to nearest 5 minutes, present as \"Xh Ym\" (e.g., \"2h 35m\").\n- If multiple ambiguous rows exist, prefer <b>Unknown</b>.\n- If ranges cross midnight, treat end as next day.\n\nOutput constraint (must be obeyed):\n- Respond <b>only</b> with valid HTML for Telegram parse_mode=HTML.\n- Allowed tags: <b>, <strong>, <i>, <em>, <u>, <s>, <strike>, <code>, <pre>, <a href=\"...\">.\n- No other tags, CSS, JS, or images. Keep it short and punchy (~8–14 short lines). Timesheet Summary must be last.\n\nHere are the rows to analyze (they are the six-hour input — do not redefine the window):\n\n${rows.join(\"\\n\")}\n`;\n\n// Return as a single item\nreturn [\n  {\n    json: {\n      prompt\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -672,
+        -560
+      ],
+      "id": "8d7939fe-33bc-4ea7-a0f4-f0b8481c3b0c",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-pro",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-pro"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        -560
+      ],
+      "id": "ebe7f20f-3023-4caa-815d-e5f8680448f8",
+      "name": "Message a model",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MR6sPVZLQVif4RNB",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "6461971913",
+        "text": "={{ $json.content.parts[0].text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -96,
+        -560
+      ],
+      "id": "443c648c-4c5f-41c5-bbc1-77eb9a16633e",
+      "name": "Send a text message1",
+      "webhookId": "0a0a1107-6f49-4cd2-ba5a-ced6672b0505",
+      "credentials": {
+        "telegramApi": {
+          "id": "U94KYvFJVXxyCTX2",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Function node: clean + add bullets for Insights section\nfunction cleanAndBullet(text = \"\") {\n  let cleaned = String(text || \"\")\n    .replace(/```[\\s\\S]*?```/g, \"\\n\")\n    .replace(/`{1,3}([^`]*)`{1,3}/g, \"$1\")\n    .replace(/(\\*\\*|__|\\*|_|~~)/g, \"\")\n    .replace(/<\\/?[^>]+>/g, \"\")\n    .replace(/\\\\([_*[\\]()~`>#+\\-=|{}.!])/g, \"$1\")\n    .replace(/\\r\\n?/g, \"\\n\")\n    .replace(/\\n{3,}/g, \"\\n\\n\")\n    .trim();\n\n  // Convert sections that start with \"1. Insights\" into bullet points\n  cleaned = cleaned.replace(\n    /(1\\. Insights[\\s\\S]*?)(2\\. Truth Check)/,\n    (match, insightsBlock, nextSection) => {\n      // Split Insights block by newlines after the heading\n      const lines = insightsBlock.split(\"\\n\").map(l => l.trim());\n      const heading = lines.shift(); // \"1. Insights\"\n      const bullets = lines\n        .filter(l => l.length > 0)\n        .map(l => `- ${l}`)\n        .join(\"\\n\");\n      return `${heading}\\n${bullets}\\n${nextSection}`;\n    }\n  );\n\n  return cleaned;\n}\n\n// ==== main ====\nconst item = $input.first().json || {};\nlet raw =\n  (item.content?.parts?.[0]?.text) ||\n  item.text ||\n  item.prompt ||\n  item.message ||\n  \"\";\n\nif (!raw) raw = JSON.stringify(item, null, 2);\n\nconst result = cleanAndBullet(raw);\n\nreturn [\n  {\n    json: {\n      text: result\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1344,
+        -784
+      ],
+      "id": "a54d66f7-8302-4c80-ba48-3c1e5a29e673",
+      "name": "Code2",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8",
+          "mode": "list",
+          "cachedResultName": "Time Sheet New",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.date }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -896,
+        -336
+      ],
+      "id": "49e60606-0d9b-40a5-b1ea-0f82fa019280",
+      "name": "Get row(s) in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IhMCIGJWsxGsjzwX",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the first input item\nconst item = $input.first().json;\n\n// Extract date safely (before \"T\")\nconst timestamp = item.timestamp || \"\";\nconst dateOnly = timestamp.includes(\"T\") ? timestamp.split(\"T\")[0] : timestamp;\n\n// Get hour as a number\nconst hour = parseInt(item.Hour, 10);\nlet quarter = null;\n\nswitch (hour) {\n  case 11:\n    quarter = \"Q1\";\n    break;\n  case 18:\n    quarter = \"Q2\";\n    break;\n  case 23:\n    quarter = \"Q3\";\n    break;\n  default:\n    quarter = \"NA\"; // fallback if no match\n}\n\nreturn [\n  {\n    json: {\n      date: dateOnly,\n      quarter,\n    \n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        -336
+      ],
+      "id": "a6a22fc5-2950-4b4f-9118-b75f1e999589",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect all rows (entire day)\nconst rows = $input.all().map(item => {\n  const data = item.json;\n  const time = data.Time;\n  const task = data[\"Task Done\"] || \"Not specified\";\n  return `${time} → ${task}`;\n});\n\n// Combine into a prompt string (use backticks for multiline)\nconst prompt = `You are a clear, experienced mentor to Prakash — direct, practical, and kind.\nYou will be given the ENTIRE DAY's timesheet (all rows). Read every line, compute time spent on each entry, classify each time segment, and produce a concise end-of-day mentor report that helps Prakash move faster and smarter.\n\nHow to compute durations:\n- Each row has a timestamp (HH:MM). Duration for a row = difference to the next row's timestamp.\n- For the last row of the day assume a default duration of 30 minutes.\n- Round durations to the nearest 5 minutes.\n- If timestamps cross midnight, handle accordingly (treat later time as next-day if needed).\n\nClassification rules (use these strictly):\n- <b>Productive</b>: tasks directly building InnovateIT Labs or high-leverage learning (coding features, client delivery, sales calls, proposals, paid work, focused learning).\n- <b>Wasted</b>: low-value activities that leak time (social scrolling, long unstructured chats, filler browsing, lengthy idle breaks, unclear long meetings with no outputs).\n- <b>Unknown</b>: task description is vague/ambiguous (e.g., \"working\", \"misc\") — count as unknown.\n\nBuckets to report:\n- Standard buckets: Morning (05:00–10:59), Afternoon (11:00–16:59), Evening (17:00–23:00).\n- Also compute a custom bucket 08:00–15:00 (user example) and give the same metrics for it.\n\nRequired output format (produce exactly these 6 sections; short lines only):\n1. <b>Insights</b> – 2–3 observations about the full day (patterns, energy, leaks).\n2. <b>Wins</b> – 1–2 things done well.\n3. <b>Truth</b> – 1–2 honest weaknesses/time leaks.\n4. <b>Action Plan (next 12h)</b> – 1–3 concrete, timed tasks (include time-boxes).\n5. <b>Mentor’s Reminder</b> – one-line push linking effort → InnovateIT Labs + personal goal.\n6. <b>Timesheet Summary</b> – LAST section. For each bucket (including custom 08:00–15:00) show:\n   - Total time in bucket (HH:MM).\n   - Productive time (HH:MM).\n   - Wasted time (HH:MM).\n   - Unknown time (HH:MM).\n   - Total entries (count).\n   - Chronological highlights: up to 5 exact rows from the timesheet (e.g., \"09:15 → Phone follow-up with client\").\n   - Final one-line verdict: which 2-hour block was highest-focus and which block leaked time most.\n\nPrecision & rules for the model:\n- Compute durations from timestamps; do not guess durations otherwise.\n- When a task spans multiple buckets, split its duration across buckets proportionally based on time overlap.\n- When classifying, prefer Productive only if the task clearly matches the Productive list; otherwise mark Unknown or Wasted per rules above.\n- Round all hour totals to nearest 5 minutes and present as Hh Mm (e.g., 2h 35m).\n\nHTML constraint:\nRespond <b>only</b> with valid HTML suitable for Telegram's parse_mode=HTML. Use only these tags: <b>, <strong>, <i>, <em>, <u>, <s>, <strike>, <code>, <pre>, and <a href=\"...\">. No other tags, CSS, JS, or images. Keep it concise (aim ~12 short lines), ensure the <b>Timesheet Summary</b> section appears last with the requested counts and chronological highlights.\n\nHere is the full day's timesheet (analyze all rows below):\n\n${rows.join(\"\\n\")}\n`;\n\n// Return as a single item\nreturn [\n  {\n    json: {\n      prompt\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -672,
+        -336
+      ],
+      "id": "71fc8972-a695-4ee3-9d52-e367f178732d",
+      "name": "Code4"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-pro",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-pro"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        -336
+      ],
+      "id": "cb90234a-58e3-443c-a70f-81f7dd13df20",
+      "name": "Message a model1",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MR6sPVZLQVif4RNB",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "6461971913",
+        "text": "={{ $json.content.parts[0].text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -96,
+        -336
+      ],
+      "id": "6627b16b-90fd-4706-aeb6-391cd76acd0f",
+      "name": "Send a text message2",
+      "webhookId": "0a0a1107-6f49-4cd2-ba5a-ced6672b0505",
+      "credentials": {
+        "telegramApi": {
+          "id": "U94KYvFJVXxyCTX2",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 1 23  * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1344,
+        -336
+      ],
+      "id": "9cc2105a-1767-4501-97d8-ebcc8f9412ff",
+      "name": "Schedule Trigger for EOD Report"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 11,17,23  * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1344,
+        -560
+      ],
+      "id": "f9cd0b56-f659-4799-b710-ecb5430200ab",
+      "name": "Quarter Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input timestamp from previous node\nconst currentTime = new Date($json[\"timestamp\"]);\n\n// Define your deadline (example: Sep 30, 2025 at 23:59:59 IST)\nconst deadline = new Date(\"2025-10-10T23:59:59+05:30\");\n\n// Calculate remaining ms\nconst diffMs = deadline - currentTime;\n\n// Convert to minutes\nconst diffMinutes = Math.floor(diffMs / 60000);\n\n// Calculate number of 15-min slots\nconst slotsLeft = Math.floor(diffMinutes / 15);\n\n// Calculate days left\nconst daysLeft = Math.floor(diffMs / (1000 * 60 * 60 * 24));\n\nreturn {\n  currentTime: currentTime.toLocaleString(\"en-IN\", { hour12: true, timeZone: \"Asia/Kolkata\" }),\n  deadline: deadline.toLocaleString(\"en-IN\", { hour12: true, timeZone: \"Asia/Kolkata\" }),\n  diffMinutes,\n  slotsLeft,\n  daysLeft\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        -112
+      ],
+      "id": "2ee92890-9e13-4ea7-a12a-238e8178d2e1",
+      "name": "Code5"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        []
+      ]
+    },
+    "Get row(s) in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Code4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code4": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger for EOD Report": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quarter Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        []
+      ]
+    },
+    "Code5": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message2": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "7WPaSA1hPhlBoaMv"
+  },
+  "versionId": "71457586-98bb-4c05-b270-4137f2915a57",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1dc7defac500b2fc11c4396b325ea218dac900cb0b452bd7227efb3ec3b60817"
+  },
+  "id": "S1nNTKPc384XAezH",
+  "tags": []
+}
