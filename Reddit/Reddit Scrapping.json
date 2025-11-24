@@ -1,0 +1,619 @@
+{
+  "name": "Reddit Scrapping",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "The flow I want to achieve\n1. Schedule \n2. Scraps using various keywords\n3. Push to sheets. \n4. Send to gemini for scoring with batches. \n5. Push to sheets with mobile number and email\n6. generate reach out content for them with 3 follow ups and send it through email and mark the sent content too in the sheets and also the upcoming follow ups\n7. execute the follow ups on right date and also initimate if got any reply to a message.",
+        "height": 432
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2736,
+        48
+      ],
+      "typeVersion": 1,
+      "id": "3a368eca-155f-47e7-b764-ecaa233022f4",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "url": "https://oauth.reddit.com/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={\n  \"q\": \"{{ $json.q }}\",\n  \"sort\": \"top\",\n  \"t\": \"hour\",\n  \"limit\": 100,\n  \"type\": \"link\",\n  \"restrict_sr\": false\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        160,
+        0
+      ],
+      "id": "4f1e19f5-92a5-47f5-82b7-949b3d7a6fe7",
+      "name": "HTTP Request",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "eKCAaWTM46bWPw8J",
+          "name": "Prakash reddit credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1e5bb847-f1ba-4068-9810-4332e098382f",
+              "name": "q",
+              "value": "[   \"looking for app developer\",   \"need a website\",   \"need a web developer\",   \"hiring a developer\",   \"freelance web developer\",   \"looking for software developer\",   \"build my app\",   \"develop my website\",   \"need app developer\",   \"wordpress developer needed\",   \"ecommerce website developer\",   \"custom website developer\",   \"flutter developer needed\",   \"react native developer\",   \"android app developer\",   \"ios app developer\",   \"seo expert needed\",   \"need digital marketing\",   \"social media manager\",   \"run facebook ads\" ]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -96,
+        0
+      ],
+      "id": "3192021a-e722-40f4-8cbd-ee19e78c4e41",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "q",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        112,
+        208
+      ],
+      "id": "9f9321c7-840a-404e-8d2a-97a91c434242",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 4 18 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -608,
+        -96
+      ],
+      "id": "d7c3e0dc-49d2-4345-a291-e99be63ec6ef",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2993258c-3d9a-449e-9d16-1fcbe9dd538e",
+              "name": "=sheetName",
+              "value": "={{ $now.tz('Asia/Kolkata').toFormat('yyyy-MM-dd') }}",
+              "type": "string"
+            },
+            {
+              "id": "7dca4549-4d48-408e-ae46-3dc7b7bef75b",
+              "name": "spreadsheetId",
+              "value": "=1EUw9SQ3A8WYeNHjXlrfSfLkXosaASo_IcH5fGWyx5Bg",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -544,
+        -320
+      ],
+      "id": "90fb6f5f-cbb9-4f20-8839-e2f95f919fdf",
+      "name": "Edit Fields1",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "url": "={{`https://sheets.googleapis.com/v4/spreadsheets/${$json.spreadsheetId}?fields=sheets.properties.title`}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -320,
+        -320
+      ],
+      "id": "9d89ec1c-a397-4694-835e-c9b2553bde55",
+      "name": "HTTP Request1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IhMCIGJWsxGsjzwX",
+          "name": "Google Sheets account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "be75d853-8481-453d-ba8c-edb47544b7b7",
+              "leftValue": "={{ ($json.sheets || []).map(s => s.properties.title).includes($node[\"Edit Fields1\"].json.sheetName) ? true : false }}\n\n",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -96,
+        -320
+      ],
+      "id": "0ecc0f3e-aa00-4128-9665-f33542ed16bd",
+      "name": "If",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "documentId": {
+          "__rl": true,
+          "value": "={{$node[\"Edit Fields1\"].json.spreadsheetId}}\n",
+          "mode": "id"
+        },
+        "title": "={{$node[\"Edit Fields1\"].json.sheetName}}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        128,
+        -320
+      ],
+      "id": "00a8344b-f87d-4cc6-95a1-a6f26566f17c",
+      "name": "Create sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IhMCIGJWsxGsjzwX",
+          "name": "Google Sheets account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ZEB7j8eq_X7JvLST8CLdIXh0sykF1IQTn6rR0T4imzI",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Time Scrapped": "={{ $json[\"Time Scrapped\"] }}",
+            "Post URL": "={{ $json[\"Post URL\"] }}",
+            "Post Data": "={{ $json[\"Post Data\"] }}",
+            "Label": "={{ $json[\"Post Data\"] }}",
+            "Phone": "={{ $json[\"Phone\"] }}",
+            "Email": "={{ $json[\"Email\"] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "spreadsheetId",
+              "displayName": "spreadsheetId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "sheetName",
+              "displayName": "sheetName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Time Scrapped",
+              "displayName": "Time Scrapped",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Post URL",
+              "displayName": "Post URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Post Data",
+              "displayName": "Post Data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Label",
+              "displayName": "Label",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1792,
+        -16
+      ],
+      "id": "cc23052f-f569-4d67-930f-299e4f33f760",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IhMCIGJWsxGsjzwX",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst date = now.toISOString().split('T')[0];\nreturn [{ json: { date, readableTime: now.toLocaleTimeString(\"en-IN\", { timeZone: \"Asia/Kolkata\" }) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        -96
+      ],
+      "id": "0f7a706b-53e5-47bb-9524-b08d6c6cce58",
+      "name": "Code to get Today Date"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "7NcQlLCUSNoPMqgp",
+          "mode": "list",
+          "cachedResultName": "Create new Sheet"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1392,
+        -224
+      ],
+      "id": "603cdeb9-c861-46df-85ed-828001df9bde",
+      "name": "Execute Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get incoming Reddit post data\nconst items = $input.all();\n\nreturn items.map(item => {\n  const post = item.json;\n  return {\n    json: {\n      spreadsheetId: \"1ZEB7j8eq_X7JvLST8CLdIXh0sykF1IQTn6rR0T4imzI\",\n      sheetName: \"Sheet1\",\n      \"Time Scrapped\": new Date().toLocaleString(),\n      \"Post URL\": `https://www.reddit.com${post.permalink || ''}`,\n      \"Post Data\": post.selftext || post.title || '',\n      \"Label\": post.subreddit || '',\n      \"Phone\": \"\",\n      \"Email\": \"\"\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "187f3495-1475-498e-8c93-568e62bc8117",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "if (!$json.data || !$json.data.children) return [];\nreturn $json.data.children.map(post => ({\n  json: {\n    title: post.data.title,\n    selftext: post.data.selftext || \"\",\n    permalink: post.data.permalink,\n    subreddit: post.data.subreddit,\n    author: post.data.author\n  }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        0
+      ],
+      "id": "29b89f8b-1081-437b-9bd4-f08084f3a981",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1600,
+        -16
+      ],
+      "id": "103ee2ba-1326-4330-ae83-1b08f3571636",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data.children",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "799395ab-dd0b-4e6a-86a4-22a61ebb3a88",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  const post = item.json.data;\n  return {\n    json: {\n      Time_Scrapped: new Date().toLocaleString(),\n      Post_URL: `https://www.reddit.com${post.permalink}`,\n      Post_Data: post.selftext || post.title || \"(no content)\",\n      Label: \"\",\n      Phone: \"\",\n      Email: \"\"\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        208
+      ],
+      "id": "48b06fbb-afc5-41ac-973e-a8a7198dc69a",
+      "name": "Format Reddit Data"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        []
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code to get Today Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Create sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create sheet": {
+      "main": [
+        []
+      ]
+    },
+    "Code to get Today Date": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Reddit Data": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "7WPaSA1hPhlBoaMv"
+  },
+  "versionId": "19119ca7-7e92-49bd-b084-2ddffdf7d65a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1dc7defac500b2fc11c4396b325ea218dac900cb0b452bd7227efb3ec3b60817"
+  },
+  "id": "m08rMFyNxQa8U1i6",
+  "tags": []
+}

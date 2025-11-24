@@ -1,0 +1,481 @@
+{
+  "name": "Lead Scoring for reddit",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "The flow I want to achieve\n1. Schedule \n2. Scraps using various keywords\n3. Push to sheets. \n4. Send to gemini for scoring with batches. \n5. Push to sheets with mobile number and email\n6. generate reach out content for them with 3 follow ups and send it through email and mark the sent content too in the sheets and also the upcoming follow ups\n7. execute the follow ups on right date and also initimate if got any reply to a message.",
+        "height": 432
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2288,
+        -144
+      ],
+      "typeVersion": 1,
+      "id": "fdf5c9ed-c07c-4a15-97f5-02c1cc895bfa",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1EUw9SQ3A8WYeNHjXlrfSfLkXosaASo_IcH5fGWyx5Bg",
+          "mode": "list",
+          "cachedResultName": "reddit_raw_posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1EUw9SQ3A8WYeNHjXlrfSfLkXosaASo_IcH5fGWyx5Bg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.date }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Label"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -752,
+        -208
+      ],
+      "id": "3ebf3902-763e-402a-afc4-d182cb984cd9",
+      "name": "Get row(s) in sheet",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IhMCIGJWsxGsjzwX",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "items = _input.all()\nprint(len(items))\n\n# ✅ Limit to first 200 posts\nitems = items[:]\nprint(f\"Processing {len(items)} posts...\")\n\n# 🧱 Build post_lines: \"1) text1\\n2) text2\\n...\"\npost_lines = \"\\n\".join([\n    f\"{i + 1}) {str(item.json['Post Data']).replace('\\n', ' ').strip()}\"\n    for i, item in enumerate(items)\n])\n\n# 🧠 Construct final prompt\nprompt = f\"\"\"\nYou are a strict, deterministic JSON-only classifier+extractor. For every input post (one per line) you MUST output only NDJSON (newline-delimited JSON). Do not output anything else.\n\nEach JSON object must exactly match this schema and field order:\n{{\"i\": <1-based index>, \"label\": <requirement|in_house_hiring|offering|irrelevant>, \"email\": <string|null>, \"phone\": <string|null>}}\n\nHigh-level semantic rule (read before all heuristics):\n- Label \"requirement\" ONLY when the post is explicitly seeking a PERSON or TEAM to perform work, collaborate, or be contracted (paid or unpaid) for a deliverable or ongoing contribution — e.g., \"looking for a web developer\", \"searching for a manga artist to partner\", \"need someone to build my plugin\".\n- Do NOT label \"requirement\" when the post is describing **software/product requirements**, asking for **advice**, requesting **survey responses**, or listing desired **features** for an application — those are **irrelevant** in hiring sense.\n\nClassification rules (semantic-first):\n- requirement = poster is seeking a person/team to perform work (freelance, contract, partnership, collaboration, one-off project). Common verbs: \"looking for\", \"need\", \"searching for\", \"seeking\", \"wanted\", \"required\", \"hire\", \"collaborate\" — but only if the object is a person/role (developer, artist, designer, copywriter, etc.).\n- in_house_hiring = company/org hiring for employment (full-time/part-time/permanent/contract-to-hire). Look for job signals: \"we're hiring\", \"join our team\", \"apply at\", \"careers\", \"full-time\", \"part-time\", \"salary\", \"benefits\", \"internship\", job URL, office location.\n- offering = the poster is offering their own services or availability (first-person). Cues: \"I am a freelance\", \"I'm available\", \"I can build\", \"portfolio\", \"DM me\", \"hire me\".\n- irrelevant = blank, spam, purely promotional, advice-seeking, survey requests, product-feature lists, research calls, or mixed/ambiguous intents (e.g., both hiring and offering in same post).\n\nExplicit negative rules (to avoid false positives):\n- If post lists **software features**, **PKMS requirements**, or says \"I would like the application to have the following features\" → label **irrelevant** (these are product/feature requirements, not hiring requests).\n- If post asks for **advice, guidance, strategies, or feedback** (e.g., \"how to find a trading edge\", \"what do you think of my career plan?\") → label **irrelevant**.\n- If post requests **survey responses / research participants** (\"please fill my survey\", \"if you've played X, please answer\") → label **irrelevant**.\n- If post is explicitly *about recruiting collaborators* (phrases like \"collaboration/partnership\" or \"looking for an artist to handle the art side\") treat as **requirement** only if it's clearly asking for a person to join/produce work; if it's asking only for feedback/testers/contributors with no commitment to do the work together, treat as **irrelevant**.\n- If the post contains verbs that refer to system attributes (e.g., \"should have\", \"feature\", \"would like\", \"I want it to have\") and not to people (\"looking for\", \"need someone\"), do NOT classify as requirement.\n\nDisambiguation & tie-breakers:\n- Tech-role override: if the post *requests a tech role* (web developer, app developer, WordPress developer, React/Flutter/Android/iOS developer, frontend/backend/full-stack, mobile dev) with verbs like \"looking for\", \"need\", \"required\", and there are **no employment signals**, label **requirement**.\n- Employment override: if the post contains job signals (apply at, join our team, full-time, salary, benefits, job URL) label **in_house_hiring** even if tech-role words appear.\n- Mixed intents (poster both offering and requesting, or asks for hiring AND offers themselves) → **irrelevant**.\n- If uncertain after reading full post → **irrelevant**.\n\nExtraction rules:\n- Email: extract only the first valid email using pattern `[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}`; if none, return `null`.\n- Phone: extract only the first valid phone in allowed forms (examples): `9876543210`, `+91 9876543210`, `+1-800-555-1234`, `(123) 456-7890`, `123.456.7890`. Return matched substring as-is; if none, `null`.\n- For blank or whitespace-only posts: label = `irrelevant`, email = `null`, phone = `null`.\n\nOutput rules:\n- One NDJSON line per post.\n- Each JSON object must include the fields in this exact order: `i`, `label`, `email`, `phone`.\n- Labels must be lowercase and exactly one of: `requirement`, `in_house_hiring`, `offering`, `irrelevant`.\n- Use JSON `null` for missing values (do not use `\"null\"` or `\"None\"`).\n- No extra output, commentary, separators, or explanation — nothing but NDJSON lines.\n\nHelpful regex suggestions (optional pre-checks in your wrapper):\n- Tech-role detection (match requests for people):\n  `(?i)\\b(looking for|need(?:s|ed)?|required|wanted|searching for|seeking|hire|hiring for|collaborat(e|ion)|partner)\\b[^\\n]{{0,60}}\\b(web developer|website developer|wordpress developer|wp developer|react(?:js| native)? developer|flutter developer|android developer|ios developer|mobile developer|app developer|frontend developer|backend developer|full[- ]stack developer|php developer|node\\.?js developer|manga artist|artist|illustrator|designer)\\b`\n- Product-feature detection (do NOT classify as requirement if matched):\n  `(?i)\\b(i would like|i want it to have|features|would like the application|the application should have|feature list|I would like the application to have the following|the reason I want)\\b`\n- Survey/advice detection:\n  `(?i)\\b(survey|please fill|fill my survey|if you have played|research|responses from people|help me with|how do i|what do you think|guidance|advice)\\b`\n\nFew-shot examples (do NOT output these as results — they are for the model to learn inside the prompt):\nInput -> Expected NDJSON\n1) \"I’m a 33yo immigrant... considering becoming a life coach... Any advice? Thanks for reading\"  \n-> `{{\"i\": 1, \"label\": \"irrelevant\", \"email\": null, \"phone\": null}}`\n\n2) \"Hello! I'm a 19yo college student... need responses from people who played OMORI ... [survey link]\"  \n-> `{{\"i\": 2, \"label\": \"irrelevant\", \"email\": null, \"phone\": null}}`\n\n3) \"I’m searching for a passionate and talented manga artist to bring to life a story... collaboration/partnership project (not paid)... DM me\"  \n-> `{{\"i\": 3, \"label\": \"requirement\", \"email\": null, \"phone\": null}}`\n\n4) \"I've been trading for 3 years... I need guidance on how to actually find a working strategy.\"  \n-> `{{\"i\": 4, \"label\": \"irrelevant\", \"email\": null, \"phone\": null}}`\n\n5) \"I'm looking for a PKMS that has these features: multi-user, central server, wiki, document storage...\"  \n-> `{{\"i\": 5, \"label\": \"irrelevant\", \"email\": null, \"phone\": null}}`\n\n6) \"Looking for a wordpress developer to build a one-off plugin. Paid project.\"  \n-> `{{\"i\": 6, \"label\": \"requirement\", \"email\": null, \"phone\": null}}`\n\n7) \"We're hiring a backend engineer — apply at hr@company.com\"  \n-> `{{\"i\": 7, \"label\": \"in_house_hiring\", \"email\": \"hr@company.com\", \"phone\": null}}`\n\n8) \"I'm a freelance mobile dev. DM for portfolio.\"  \n-> `{{\"i\": 8, \"label\": \"offering\", \"email\": null, \"phone\": null}}`\n\nDecision flow (implementation advice):\n1. If blank → irrelevant.\n2. If survey/advice/product-feature regex matches strongly → irrelevant.\n3. If tech-role regex matches:\n   - If employment-signal regex found anywhere → in_house_hiring.\n   - Else if post explicitly asks for a PERSON/partner/artist/dev → requirement.\n   - Else → irrelevant.\n4. Else follow semantic rules to detect offering, in_house_hiring, or irrelevant.\n5. If more than one label plausible → irrelevant.\n\nNow classify the following lines (one post per line).\n\nYou must output NDJSON only, one JSON object per line, exactly matching this schema and field order:\n{{\"i\": <1-based index>, \"label\": <\"requirement\"|\"in_house_hiring\"|\"offering\"|\"irrelevant\">, \"email\": <string|null>, \"phone\": <string|null>}}\n\nRules:\n- Always include all four keys in this exact order: i, label, email, phone.\n- Use double quotes for keys and string values. Use JSON null for missing email/phone.\n- \"label\" must be one of: \"requirement\", \"in_house_hiring\", \"offering\", \"irrelevant\".\n- If no email, put null. If no phone, put null.\n- Do NOT output any commentary, extra lines, or code fences — only NDJSON lines equal to the number of posts.\n- Examples:\n{{\"i\": 1, \"label\": \"irrelevant\", \"email\": null, \"phone\": null}}\n{{\"i\": 2, \"label\": \"offering\", \"email\": \"me@example.com\", \"phone\": \"+1-800-555-0000\"}}\n\n\n{post_lines}\n\n\"\"\"\n\n\n# 🪄 Output the prompt as new field for next node\nreturn [{\n    \"json\": {\n        \"prompt\": prompt\n    }\n}]\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        -144
+      ],
+      "id": "7f4f0baa-8e82-4c12-b383-fda51ae81799",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fc0b4e4d-c329-479f-b9c3-15d6c1799632",
+              "leftValue": "={{ $items().length}}",
+              "rightValue": 30,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -304,
+        -208
+      ],
+      "id": "c1f9b77d-afc5-4cd0-b971-5b55ab8092e2",
+      "name": "If",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "=contents[0].parts[0].text",
+              "value": "={{ $json.prompt }}"
+            },
+            {
+              "name": "generationConfig.temperature",
+              "value": "0"
+            },
+            {
+              "name": "generationConfig.topK",
+              "value": "1"
+            },
+            {
+              "name": "generationConfig.topP",
+              "value": "1"
+            },
+            {
+              "name": "generationConfig.maxOutputTokens",
+              "value": "10000"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        144,
+        -144
+      ],
+      "id": "4908bac6-88b9-4806-8773-7a8931b21465",
+      "name": "HTTP Request1",
+      "executeOnce": true,
+      "retryOnFail": false,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MR6sPVZLQVif4RNB",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import json\nimport re\n\nitems = _input.all()\ntext = items[0].json[\"candidates\"][0][\"content\"][\"parts\"][0][\"text\"]\n\n# Remove any ```json code block wrappers\ntext = text.replace(\"```json\", \"\").replace(\"```\", \"\").strip()\n\n# Regex patterns\nemail_pattern = re.compile(r\"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\")\nphone_pattern = re.compile(r\"(\\+?\\d[\\d\\s\\-\\.\\(\\)]{6,}\\d)\")\n\n# Pattern to detect bare label tokens like: , \"offering\",  or , \"offering\"}\nbare_label_pattern = re.compile(\n    r',\\s*\"(?P<label>requirement|in_house_hiring|offering|irrelevant)\"(?=\\s*(,|\\}))'\n)\n\ndef repair_line(line: str) -> str:\n    \"\"\"\n    Conservative repair:\n    - Insert \"label\": \"<token>\" when a bare allowed label string appears.\n    - Remove trailing commas before braces.\n    \"\"\"\n    ln = line.strip()\n    # Insert missing \"label\" when it's a bare token\n    ln = bare_label_pattern.sub(r', \"label\": \"\\g<label>\"', ln)\n    # Remove trailing commas before closing brace\n    ln = re.sub(r',\\s*}', '}', ln)\n    return ln\n\ndef clean_phone(raw_phone: str) -> str:\n    \"\"\"\n    Tidy up phone capture:\n    - Trim whitespace\n    - Fix simple unbalanced parentheses by removing stray '(' or ')' characters if unbalanced\n    - Collapse multiple spaces\n    \"\"\"\n    if raw_phone is None:\n        return None\n    s = raw_phone.strip()\n    # collapse multiple spaces\n    s = re.sub(r'\\s+', ' ', s)\n    # count parentheses, if unbalanced remove all parentheses (conservative)\n    if s.count('(') != s.count(')'):\n        s = s.replace('(', '').replace(')', '')\n    # remove accidental duplicated punctuation like '+1 ((' -> '+1 ('\n    s = re.sub(r'\\(\\(+', '(', s)\n    s = re.sub(r'\\)\\)+', ')', s)\n    return s\n\n# Process NDJSON lines\nlines = [line for line in text.split('\\n') if line.strip()]\nparsed_items = []\n\nfor idx, raw in enumerate(lines, start=1):\n    # Try to repair a common structural mistake first\n    line = repair_line(raw)\n\n    try:\n        obj = json.loads(line)\n    except json.JSONDecodeError:\n        # If still invalid JSON, fallback to conservative object but keep i aligned\n        obj = {\"i\": idx, \"label\": \"irrelevant\", \"email\": None, \"phone\": None}\n\n    # Normalize email: handle JSON null (becomes None) or string \"null\"\n    email_val = obj.get(\"email\")\n    if isinstance(email_val, str):\n        if email_val.lower() == \"null\":\n            email_val = None\n    # If still missing, try to extract from raw text\n    if not email_val:\n        m = email_pattern.search(raw)\n        email_val = m.group(0) if m else None\n\n    # Extract phone: prefer parsed value, else regex from raw\n    phone_val = obj.get(\"phone\")\n    if isinstance(phone_val, str):\n        if phone_val.lower() == \"null\":\n            phone_val = None\n\n    if not phone_val:\n        m = phone_pattern.search(raw)\n        phone_val = m.group(0) if m else None\n\n    # Clean phone string (fix unbalanced parentheses etc)\n    phone_val = clean_phone(phone_val)\n\n    # Ensure i is int and present\n    i_val = obj.get(\"i\", idx)\n    try:\n        i_val = int(i_val)\n    except Exception:\n        i_val = idx\n\n    # Ensure label is valid (fallback to \"irrelevant\")\n    label_val = obj.get(\"label\")\n    if not isinstance(label_val, str) or label_val not in {\"requirement\", \"in_house_hiring\", \"offering\", \"irrelevant\"}:\n        # try to find label token anywhere in the raw line\n        m = re.search(r'\\b(requirement|in_house_hiring|offering|irrelevant)\\b', json.dumps(obj) + \" \" + raw)\n        label_val = m.group(0) if m else \"irrelevant\"\n\n    # Final object (use None for missing values)\n    parsed = {\n        \"i\": i_val,\n        \"label\": label_val,\n        \"email\": email_val if email_val is not None else \"NA\",\n        \"phone\": str(phone_val) if phone_val is not None else \"NA\",\n    }\n\n    parsed_items.append({\"json\": parsed})\n\n# Return array of dicts as n8n expects\nreturn parsed_items\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        -144
+      ],
+      "id": "f276a11f-dcd2-493a-ae6a-12f0389b9c45",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1EUw9SQ3A8WYeNHjXlrfSfLkXosaASo_IcH5fGWyx5Bg",
+          "mode": "list",
+          "cachedResultName": "reddit_raw_posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1EUw9SQ3A8WYeNHjXlrfSfLkXosaASo_IcH5fGWyx5Bg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Code for outputting the date').item.json.date }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $json.row_number }}",
+            "Label": "={{ $json.label }}",
+            "Phone": "={{ $json.phone }}",
+            "Email": "={{ $json.email }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Time Scrapped",
+              "displayName": "Time Scrapped",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Post URL",
+              "displayName": "Post URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Post Data",
+              "displayName": "Post Data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Label",
+              "displayName": "Label",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        816,
+        -208
+      ],
+      "id": "11a19036-6e1a-43c7-9635-54f2736f992d",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IhMCIGJWsxGsjzwX",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        592,
+        -208
+      ],
+      "id": "888e089c-9b7b-438d-b5fe-3b2edea3d79d",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 3-58 * * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1200,
+        -208
+      ],
+      "id": "765ad121-f034-4528-9d1d-f9a9a282f21c",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "maxItems": 50
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -528,
+        -208
+      ],
+      "id": "a6970e8a-1c7c-4589-b46c-ad8f7f944b9f",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.timestamp;\n\n// Extract only the date part before the \"T\"\nconst dateOnly = data.split(\"T\")[0];\n\nconsole.log(dateOnly);\n\n// Return it to the workflow\nreturn [{ json: { date: dateOnly } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -976,
+        -208
+      ],
+      "id": "35e25705-5a17-476c-95bd-34a5c39643c4",
+      "name": "Code for outputting the date"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        []
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code for outputting the date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code for outputting the date": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "7WPaSA1hPhlBoaMv"
+  },
+  "versionId": "08fa8d63-7088-4c35-a79e-9216bd27adda",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1dc7defac500b2fc11c4396b325ea218dac900cb0b452bd7227efb3ec3b60817"
+  },
+  "id": "f3mMt7lO5lkCIx7u",
+  "tags": []
+}
