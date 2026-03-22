@@ -110,7 +110,7 @@
             {
               "id": "7dca4549-4d48-408e-ae46-3dc7b7bef75b",
               "name": "spreadsheetId",
-              "value": "=1EUw9SQ3A8WYeNHjXlrfSfLkXosaASo_IcH5fGWyx5Bg",
+              "value": "=1AbCDeFgHiJkLmNoPqRsTuVwXyZ1234567890Fake",
               "type": "string"
             }
           ]
@@ -217,7 +217,7 @@
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "1ZEB7j8eq_X7JvLST8CLdIXh0sykF1IQTn6rR0T4imzI",
+          "value": "1ZyXwVuTsRqPoNmLkJiHgFeDcBa0987654321Demo",
           "mode": "id"
         },
         "sheetName": {
@@ -380,7 +380,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get incoming Reddit post data\nconst items = $input.all();\n\nreturn items.map(item => {\n  const post = item.json;\n  return {\n    json: {\n      spreadsheetId: \"1ZEB7j8eq_X7JvLST8CLdIXh0sykF1IQTn6rR0T4imzI\",\n      sheetName: \"Sheet1\",\n      \"Time Scrapped\": new Date().toLocaleString(),\n      \"Post URL\": `https://www.reddit.com${post.permalink || ''}`,\n      \"Post Data\": post.selftext || post.title || '',\n      \"Label\": post.subreddit || '',\n      \"Phone\": \"\",\n      \"Email\": \"\"\n    }\n  };\n});\n"
+        "jsCode": "// Get incoming Reddit post data\nconst items = $input.all();\n\nreturn items.map(item => {\n  const post = item.json;\n  return {\n    json: {\n      spreadsheetId: \"1ZyXwVuTsRqPoNmLkJiHgFeDcBa0987654321Demo\",\n      sheetName: \"Sheet1\",\n      \"Time Scrapped\": new Date().toLocaleString(),\n      \"Post URL\": `https://www.reddit.com${post.permalink || ''}`,\n      \"Post Data\": post.selftext || post.title || '',\n      \"Label\": post.subreddit || '',\n      \"Phone\": \"\",\n      \"Email\": \"\"\n    }\n  };\n});\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

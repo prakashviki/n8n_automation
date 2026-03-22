@@ -1,0 +1,1632 @@
+{
+  "name": "Agent Lisa",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "userIds": "6461971913"
+        }
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -2048,
+        16
+      ],
+      "id": "fba588ff-8c0a-4056-8122-dfc108ee79d5",
+      "name": "Telegram Trigger",
+      "webhookId": "1f8729f7-787d-4892-9770-4ab52cd97958",
+      "credentials": {
+        "telegramApi": {
+          "id": "l4bf0igSUCFtcD0K",
+          "name": "Agent LIsa Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $('Telegram Trigger').item.json.message.voice.file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1376,
+        16
+      ],
+      "id": "27a8a05e-7221-4125-837a-cbb6ff6ba9d3",
+      "name": "Get a file",
+      "webhookId": "b3785b76-c54d-471f-a504-54525070a62e",
+      "credentials": {
+        "telegramApi": {
+          "id": "l4bf0igSUCFtcD0K",
+          "name": "Agent LIsa Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash-lite",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash-lite"
+        },
+        "text": "=You are a structured personal operating system.\n\nCurrent date and time:\n{{ $now }}\n\nYour job:\n\n1. Transcribe the audio exactly.\n2. Classify the intent into ONE of the following:\n- \"activity_log\"\n- \"task_log\"\n- \"finance_log\"\n- \"reminder_set\"\n- \"reminder_review\"\n- \"calorie_log\"\n- \"analytics_query\"\n1. Extract structured data strictly according to the rules below.\n\n---\n\n## INTENT RULES.\n\nactivity_log:\n\n- User is describing what they did.\n- Time must always be stored as a fixed 15-minute interval.\n- Valid intervals are strict 15-minute blocks of the day.\n\nTIME COMPUTATION RULES:\n\n1. If user mentions exact time:\n    - Compute the corresponding 15-minute slot that contains that time.\n    - Return that full slot.\n2. If user says \"past 15 minutes\":\n    - DO NOT use a sliding window.\n    - Always select the LAST FULLY COMPLETED 15-minute slot before the current time.\n    - Example:\n    Current time: 12:07 PM\n    Last completed slot: \"11.45 AM - 12.00 PM\"\n    - Example:\n    Current time: 06:32 AM\n    Last completed slot: \"06.15 AM - 06.30 AM\"\n3. Never return a partially completed slot.\n    \n    FORMAT RULES:\n    \n- Format interval exactly as:\n\"06.15 AM - 06.30 AM\"\n- Use dot between hour and minute.\n- Always compute valid chronological interval.\n\ntask_log:\n\n- User is adding a planned task.\n- Extract:\n    - task description\n    - time_required_minutes (INTEGER only)\n    - category (MUST match one of allowed categories exactly)\n- If time not provided → estimate reasonably in integer minutes.\n- Category MUST be one of:\n    \n    \"Personal\"\n    \"Financial Growth and Stability\"\n    \"Cognizant\"\n    \"InnovateIT Labs\"\n    \"Family and Friends\"\n    \"Others\"\n    \n\nfinance_log:\n\n- Extract amount as INTEGER only.\n- No currency symbols.\n- Date:\n    - If user provides → use it.\n    - Otherwise use current date.\n- Do not invent categories.\n\nreminder_set:\n\n- Extract clear task.\n- Extract date and time.\n- If missing → infer from context.\n- Time format:\n\"HH:MM AM/PM\"\n\nreminder_review:\n\n- Triggered when user asks about reminders.\n- No task extraction required.\n\ncalorie_log:\n\n- Extract food_item.\n- Extract quantity in grams (INTEGER only).\n- If quantity given in units (e.g., 2 bananas), estimate grams.\n- Estimate calories based on Indian food standards.\n- Calories must be INTEGER.\n- Date:\n    - Use provided date.\n    - Otherwise current date.\n\nanalytics_query:\n\n- User asking for summary, patterns, totals, trends.\n- domain must be one of:\n\"activity\", \"task\", \"finance\", \"calorie\", \"reminder\"\n- time_range:\n    - Use user-provided range.\n    - If missing → infer from context.\n- metric:\n    - Examples:\n    \"total_spent\"\n    \"calories_total\"\n    \"time_spent\"\n    \"pattern_analysis\"\n    \"task_completion_rate\"\n\n---\n\n## OUTPUT RULES\n\n- Return ONLY valid JSON.\n- No explanations.\n- No markdown.\n- No comments.\n- All unused sections must contain empty strings.\n- All numeric fields must be integers.\n- All dates format: YYYY-MM-DD\n- All time intervals strictly:\n\"[HH.MM](http://hh.mm/) AM - [HH.MM](http://hh.mm/) PM\"\n\n---\n\n## OUTPUT FORMAT\n\n{\n\"transcription\": \"\",\n\"intent\": \"\",\n\n\"activity_log\": {\n\"time_interval\": \"\",\n\"description\": \"\"\n},\n\n\"task_log\": {\n\"task\": \"\",\n\"time_required_minutes\": \"\",\n\"category\": \"\"\n},\n\n\"finance_log\": {\n\"amount\": \"\",\n\"note\": \"\",\n\"date\": \"\"\n},\n\n\"reminder\": {\n\"task\": \"\",\n\"date\": \"\",\n\"time\": \"\"\n},\n\n\"calorie_log\": {\n\"food_item\": \"\",\n\"quantity\": \"\",\n\"calories\": \"\",\n\"date\": \"\"\n},\n\n\"analytics_query\": {\n\"domain\": \"\",\n\"time_range\": \"\",\n\"metric\": \"\"\n}\n}",
+        "inputType": "binary",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -928,
+        176
+      ],
+      "id": "c5c8664e-1e64-4a02-a4d6-ac2994ff569b",
+      "name": "Analyze audio",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gbUluIfGtyCUuPha",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8",
+          "mode": "list",
+          "cachedResultName": "Time Sheet New",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1258329317,
+          "mode": "list",
+          "cachedResultName": "Expense",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8/edit#gid=1258329317"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Note": "={{ $json.finance_log.note }}",
+            "Amount": "={{ $json.finance_log.amount }}",
+            "Date": "={{ $json.finance_log.date }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Note",
+              "displayName": "Note",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Amount",
+              "displayName": "Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -192,
+        -464
+      ],
+      "id": "0fb896d9-9c8d-4adf-b99a-c243dbd5fbfe",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IhMCIGJWsxGsjzwX",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "finance_log",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "8fe7153b-25c3-452e-b7df-b541812de648"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "3ad59a0c-1ed6-4e99-8bef-c232737c6b1e",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "reminder_set",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6b0799bf-a633-4404-830f-6702dbad3f9e",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "activity_log",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "431ea675-5a8b-4500-a536-339be75367be",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "calorie_log",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "5d994a2b-4f4e-4eaa-9121-64bd10fd35dd",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "task_log",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cd3b38ea-6b6e-4883-bc56-3ee83c2e807a",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "analytics_query",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -480,
+        -48
+      ],
+      "id": "fb1dca0d-9013-4309-89af-a2d0f196023f",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import json\n\nitems = _input.all()\n\n# Correct path for n8n Gemini node\ntext = items[0].json[\"content\"][\"parts\"][0][\"text\"]\n\n# Remove markdown wrappers if present\ntext = text.replace(\"```json\", \"\").replace(\"```\", \"\").strip()\n\ntry:\n    parsed = json.loads(text)\nexcept Exception:\n    return [{\n        \"json\": {\n            \"error\": \"Invalid JSON from model\",\n            \"raw_output\": text\n        }\n    }]\n\nreturn [{\"json\": parsed}]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -656,
+        16
+      ],
+      "id": "1bd4c3eb-eebf-4a97-8a3b-781bb7924c62",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8",
+          "mode": "list",
+          "cachedResultName": "Time Sheet New",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 578016884,
+          "mode": "list",
+          "cachedResultName": "Remainder",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8/edit#gid=578016884"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Task": "={{ $json.reminder.task }}",
+            "Date": "={{ $json.reminder.date }}",
+            "Time": "={{ $json.reminder.time }}",
+            "Status": "={{ $json.reminder.category }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Task",
+              "displayName": "Task",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Time",
+              "displayName": "Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -192,
+        -272
+      ],
+      "id": "38792186-094e-4f93-a9e2-35c2ad8bd939",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IhMCIGJWsxGsjzwX",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8",
+          "mode": "list",
+          "cachedResultName": "Time Sheet New",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.date }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Time Slot": "={{ $('Code').item.json.activity_log.time_interval }}",
+            "Task Done": "={{ $('Code').item.json.activity_log.description }}"
+          },
+          "matchingColumns": [
+            "Time Slot"
+          ],
+          "schema": [
+            {
+              "id": "Time Slot",
+              "displayName": "Time Slot",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Task Done",
+              "displayName": "Task Done",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Quarter",
+              "displayName": "Quarter",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Benefit",
+              "displayName": "Benefit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        96,
+        -80
+      ],
+      "id": "aee1fa33-4a97-4c26-a284-7b847ceec0f6",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IhMCIGJWsxGsjzwX",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get today’s date in YYYY-MM-DD format\nconst today = new Date();\nconst yyyy = today.getFullYear();\nconst mm = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed\nconst dd = String(today.getDate()).padStart(2, '0');\n\nconst dateOnly = `${yyyy}-${mm}-${dd}`;\n\n// Return the date for naming the spreadsheet\nreturn [{ json: { date: dateOnly } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -192,
+        -80
+      ],
+      "id": "f5f32cc7-401c-445f-a8c2-3e00eede2740",
+      "name": "Get Today Date"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8",
+          "mode": "list",
+          "cachedResultName": "Time Sheet New",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1721859371,
+          "mode": "list",
+          "cachedResultName": "Calories",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8/edit#gid=1721859371"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Calories": "={{ $json.calorie_log.calories }}",
+            "Food Item": "={{ $json.calorie_log.food_item }}",
+            "Quantity": "={{ $json.calorie_log.quantity }}",
+            "Date": "={{ $json.calorie_log.date }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Food Item",
+              "displayName": "Food Item",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Quantity",
+              "displayName": "Quantity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Calories",
+              "displayName": "Calories",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -192,
+        112
+      ],
+      "id": "ecf7e20f-f909-42c6-bc21-25f4368275be",
+      "name": "Append row in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IhMCIGJWsxGsjzwX",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8",
+          "mode": "list",
+          "cachedResultName": "Time Sheet New",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 279620469,
+          "mode": "list",
+          "cachedResultName": "Tasks",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8/edit#gid=279620469"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Task": "={{ $json.task_log.task }}",
+            "Time": "={{ $json.task_log.time_required_minutes }}",
+            "Category": "={{ $json.task_log.category }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Task",
+              "displayName": "Task",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Time",
+              "displayName": "Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -192,
+        304
+      ],
+      "id": "e88169c4-4360-42ff-9fc9-a74c27b8d25a",
+      "name": "Append row in sheet3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IhMCIGJWsxGsjzwX",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "6461971913",
+        "text": "🕵️‍♀️ Agent Lisa at work 💚🔥✨",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1600,
+        16
+      ],
+      "id": "763adf38-15d9-461c-a241-5d4be95b22dd",
+      "name": "Send a text message",
+      "webhookId": "978ce20b-9115-49e8-8285-af38af59f666",
+      "credentials": {
+        "telegramApi": {
+          "id": "l4bf0igSUCFtcD0K",
+          "name": "Agent LIsa Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "chatId": "6461971913",
+        "messageId": "={{ $('Send a text message').item.json.result.message_id }}",
+        "text": "=Expense of ₹{{ $json.Amount }} for {{ $json.Note }} on {{ $json.Date }} added successfully. ✅",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        96,
+        -464
+      ],
+      "id": "90c12ae7-3243-4e88-8482-1b1180356cf8",
+      "name": "Edit a text message",
+      "webhookId": "e05060ce-4197-4525-ad1f-ccba729704a1",
+      "credentials": {
+        "telegramApi": {
+          "id": "l4bf0igSUCFtcD0K",
+          "name": "Agent LIsa Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "chatId": "6461971913",
+        "messageId": "={{ $('Send a text message').item.json.result.message_id }}",
+        "text": "=Your remainder to  {{ $json.Task }} on  {{ $json.Date }}  {{ $json.Time }} has been added succefully. ✅",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        96,
+        -272
+      ],
+      "id": "7bd63942-0de7-44e2-9c94-1f8693e0345b",
+      "name": "Edit a text message1",
+      "webhookId": "e05060ce-4197-4525-ad1f-ccba729704a1",
+      "credentials": {
+        "telegramApi": {
+          "id": "l4bf0igSUCFtcD0K",
+          "name": "Agent LIsa Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "chatId": "6461971913",
+        "messageId": "={{ $('Send a text message').item.json.result.message_id }}",
+        "text": "=You spent  {{ $json['Time Slot'] }} on {{ $json['Task Done'] }}, Noted successfully. ✅",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        320,
+        -80
+      ],
+      "id": "182cb790-0295-48b8-9d41-0a58a1e2fe2c",
+      "name": "Edit a text message2",
+      "webhookId": "e05060ce-4197-4525-ad1f-ccba729704a1",
+      "credentials": {
+        "telegramApi": {
+          "id": "l4bf0igSUCFtcD0K",
+          "name": "Agent LIsa Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "chatId": "6461971913",
+        "messageId": "={{ $('Send a text message').item.json.result.message_id }}",
+        "text": "=You ate {{ $json['Food Item'] }} of {{ $json.Quantity }} grams of calories {{ $json.Calories }} on {{ $json.Date }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        96,
+        112
+      ],
+      "id": "2c17fdc4-2ccc-4e34-9de6-4ffb4c75dcda",
+      "name": "Edit a text message3",
+      "webhookId": "e05060ce-4197-4525-ad1f-ccba729704a1",
+      "credentials": {
+        "telegramApi": {
+          "id": "l4bf0igSUCFtcD0K",
+          "name": "Agent LIsa Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "chatId": "6461971913",
+        "messageId": "={{ $('Send a text message').item.json.result.message_id }}",
+        "text": "=Your remainder to  {{ $json.Task }} with timeline of  {{ $json.Time }} minutes and category of {{ $json.Category }} has been noted succefully. ✅",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        96,
+        304
+      ],
+      "id": "db650e0f-dafe-455c-970c-9251c001d8db",
+      "name": "Edit a text message4",
+      "webhookId": "e05060ce-4197-4525-ad1f-ccba729704a1",
+      "credentials": {
+        "telegramApi": {
+          "id": "l4bf0igSUCFtcD0K",
+          "name": "Agent LIsa Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Today Date: {{ $today }}\n\nYou are a structured analytics engine.\n\nYou receive structured input:\n\nDomain:\n{{ $json.analytics_query.domain }}\n\nTime Range:\n{{ $json.analytics_query.time_range }}\n\nMetric:\n{{ $json.analytics_query.metric }}\n\nYour job:\n\n1. Determine which Google Sheet(s) to read.\n2. Analyze the relevant data.\n3. Generate a detailed analytical explanation.\n4. Return structured JSON output only.\n\n---\n\n## SHEET MAPPING RULES\n\nIf domain = \"finance\"\n→ Use sheet: \"Expense\"\n\nIf domain = \"reminder\"\n→ Use sheet: \"Remainder\"\n\nIf domain = \"calorie\"\n→ Use sheet: \"Calories\"\n\nIf domain = \"task\"\n→ Use sheet: \"Tasks\"\n\nIf domain = \"activity\"\n→ Use sheet named exactly as the date.\nExample:\n- \"2026-02-23\"\n- \"2026-02-22\"\n\nActivity logs are stored in date-based sheets.\nSheet name always matches YYYY-MM-DD.\n\n---\n\n## TIME RANGE LOGIC\n\nIf time_range is:\n\n\"today\"\n→ Use current date sheet.\n\n\"yesterday\"\n→ Use previous date sheet.\n\n\"YYYY-MM-DD\"\n→ Use sheet with exact same name (for activity).\n\n\"YYYY-MM-DD to YYYY-MM-DD\"\n→ Analyze range across multiple sheets.\n\n\"this_week\"\n→ Collect sheets for all dates in current week.\n\n\"last_week\"\n→ Collect sheets for previous week.\n\n\"this_month\"\n→ Collect all date sheets in current month.\n\n\"past_X_days\"\n→ Collect last X date sheets.\n\nFor non-activity domains:\nUse date column filtering inside:\nExpense, Remainder, Calories, Tasks.\n\n---\n\n## METRIC RULES\n\nCompute metric strictly based on domain:\n\nFinance:\n- total_spent → Sum of amount\n- average_spent → Average\n- highest_spending_day → Date with max total\n- pattern_analysis → Spending behavior trends\n\nActivity:\n- time_spent → Total minutes\n- total_hours → Convert minutes to hours\n- pattern_analysis → Time distribution analysis\n\nTask:\n- total_tasks → Count\n- pending_tasks → Count incomplete\n- task_completion_rate → completed / total\n\nCalorie:\n- calories_total → Sum\n- average_calories → Average per day\n- highest_calorie_day → Highest intake day\n\nReminder:\n- upcoming_count → Count future reminders\n- completed_count → Count completed reminders\n\n---\n\n## RESULT SUMMARY RULES (UPDATED)\n\n- result_summary MUST be detailed.\n- Minimum 3–5 sentences.\n- Explain:\n  • What was calculated  \n  • What the numbers mean  \n  • Any visible pattern or insight  \n  • If applicable, comparison or behavioral observation  \n\n- It should read like an analytical report, not a single-line answer.\n- Maintain clarity and professionalism.\n- No markdown formatting.\n- No emojis.\n\n---\n\n## SPECIAL RULE\n\nIf user asks:\n\"How I spent my day?\"\n\"How was my day?\"\n\"Day summary\"\n\n→ domain = \"activity\"\n→ time_range = specific date\n→ metric = \"pattern_analysis\"\n\nMust generate a detailed day-level behavioral breakdown.\n\n---\n\n## OUTPUT FORMAT (DO NOT CHANGE STRUCTURE)\n\nReturn only valid JSON:\n\n{\n  \"domain\": \"\",\n  \"time_range\": \"\",\n  \"metric\": \"\",\n  \"sheet_used\": \"\",\n  \"result_summary\": \"\",\n  \"numerical_result\": \"\"\n}\n\nRules:\n\n- sheet_used must list actual sheet name(s).\n- numerical_result must be integer if applicable, otherwise empty string.\n- result_summary must be detailed and analytical.\n- No markdown.\n- No explanations outside JSON.\n- No comments.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -416,
+        608
+      ],
+      "id": "c56125c0-ce10-489a-a35c-a4fc2abe5172",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-robotics-er-1.5-preview",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        928
+      ],
+      "id": "3b2684c1-5bfc-4b5c-bb06-3690c4893212",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gbUluIfGtyCUuPha",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3-flash-preview"
+        },
+        "text": "=You are a structured personal operating system.\n\nCurrent date and time:\n{{ $now }}\n\nYour job:\n\n1. Transcribe the audio exactly.\n2. Classify the intent into ONE of the following:\n- \"activity_log\"\n- \"task_log\"\n- \"finance_log\"\n- \"reminder_set\"\n- \"reminder_review\"\n- \"calorie_log\"\n- \"analytics_query\"\n1. Extract structured data strictly according to the rules below.\n\n---\n\n## INTENT RULES.\n\nactivity_log:\n\n- User is describing what they did.\n- Time must always be stored as a fixed 15-minute interval.\n- Valid intervals are strict 15-minute blocks of the day.\n\nTIME COMPUTATION RULES:\n\n1. If user mentions exact time:\n    - Compute the corresponding 15-minute slot that contains that time.\n    - Return that full slot.\n2. If user says \"past 15 minutes\":\n    - DO NOT use a sliding window.\n    - Always select the LAST FULLY COMPLETED 15-minute slot before the current time.\n    - Example:\n    Current time: 12:07 PM\n    Last completed slot: \"11.45 AM - 12.00 PM\"\n    - Example:\n    Current time: 06:32 AM\n    Last completed slot: \"06.15 AM - 06.30 AM\"\n3. Never return a partially completed slot.\n    \n    FORMAT RULES:\n    \n- Format interval exactly as:\n\"06.15 AM - 06.30 AM\"\n- Use dot between hour and minute.\n- Always compute valid chronological interval.\n\ntask_log:\n\n- User is adding a planned task.\n- Extract:\n    - task description\n    - time_required_minutes (INTEGER only)\n    - category (MUST match one of allowed categories exactly)\n- If time not provided → estimate reasonably in integer minutes.\n- Category MUST be one of:\n    \n    \"Personal\"\n    \"Financial Growth and Stability\"\n    \"Cognizant\"\n    \"InnovateIT Labs\"\n    \"Family and Friends\"\n    \"Others\"\n    \n\nfinance_log:\n\n- Extract amount as INTEGER only.\n- No currency symbols.\n- Date:\n    - If user provides → use it.\n    - Otherwise use current date.\n- Do not invent categories.\n\nreminder_set:\n\n- Extract clear task.\n- Extract date and time.\n- If missing → infer from context.\n- Time format:\n\"HH:MM AM/PM\"\n\nreminder_review:\n\n- Triggered when user asks about reminders.\n- No task extraction required.\n\ncalorie_log:\n\n- Extract food_item.\n- Extract quantity in grams (INTEGER only).\n- If quantity given in units (e.g., 2 bananas), estimate grams.\n- Estimate calories based on Indian food standards.\n- Calories must be INTEGER.\n- Date:\n    - Use provided date.\n    - Otherwise current date.\n\nanalytics_query:\n\n- User asking for summary, patterns, totals, trends.\n- domain must be one of:\n\"activity\", \"task\", \"finance\", \"calorie\", \"reminder\"\n- time_range:\n    - Use user-provided range.\n    - If missing → infer from context.\n- metric:\n    - Examples:\n    \"total_spent\"\n    \"calories_total\"\n    \"time_spent\"\n    \"pattern_analysis\"\n    \"task_completion_rate\"\n\n---\n\n## OUTPUT RULES\n\n- Return ONLY valid JSON.\n- No explanations.\n- No markdown.\n- No comments.\n- All unused sections must contain empty strings.\n- All numeric fields must be integers.\n- All dates format: YYYY-MM-DD\n- All time intervals strictly:\n\"[HH.MM](http://hh.mm/) AM - [HH.MM](http://hh.mm/) PM\"\n\n---\n\n## OUTPUT FORMAT\n\n{\n\"transcription\": \"\",\n\"intent\": \"\",\n\n\"activity_log\": {\n\"time_interval\": \"\",\n\"description\": \"\"\n},\n\n\"task_log\": {\n\"task\": \"\",\n\"time_required_minutes\": \"\",\n\"category\": \"\"\n},\n\n\"finance_log\": {\n\"amount\": \"\",\n\"note\": \"\",\n\"date\": \"\"\n},\n\n\"reminder\": {\n\"task\": \"\",\n\"date\": \"\",\n\"time\": \"\"\n},\n\n\"calorie_log\": {\n\"food_item\": \"\",\n\"quantity\": \"\",\n\"calories\": \"\",\n\"date\": \"\"\n},\n\n\"analytics_query\": {\n\"domain\": \"\",\n\"time_range\": \"\",\n\"metric\": \"\"\n}\n}",
+        "inputType": "binary",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -928,
+        -32
+      ],
+      "id": "813e14d5-8171-41d5-9f33-5cbf59efa2df",
+      "name": "Analyze audio1",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gbUluIfGtyCUuPha",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const weights = {\n  1: 1,\n  2: 1,\n  3: 1,\n  4: 1,\n  5: 1,\n  6: 1,\n\n};\n\nconst pool = [];\n\nfor (const num in weights) {\n  for (let i = 0; i < weights[num]; i++) {\n    pool.push(Number(num));\n  }\n}\n\nconst randomNumber = pool[Math.floor(Math.random() * pool.length)];\n\nreturn [{ json: { randomNumber } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1824,
+        16
+      ],
+      "id": "422fe9e6-7355-4e90-862b-a42abc3feec5",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3-flash-preview"
+        },
+        "text": "=You are a structured personal operating system.\n\nCurrent date and time:\n{{ $now }}\n\nYour job:\n\n1. Transcribe the audio exactly.\n2. Classify the intent into ONE of the following:\n- \"activity_log\"\n- \"task_log\"\n- \"finance_log\"\n- \"reminder_set\"\n- \"reminder_review\"\n- \"calorie_log\"\n- \"analytics_query\"\n1. Extract structured data strictly according to the rules below.\n\n---\n\n## INTENT RULES.\n\nactivity_log:\n\n- User is describing what they did.\n- Time must always be stored as a fixed 15-minute interval.\n- Valid intervals are strict 15-minute blocks of the day.\n\nTIME COMPUTATION RULES:\n\n1. If user mentions exact time:\n    - Compute the corresponding 15-minute slot that contains that time.\n    - Return that full slot.\n2. If user says \"past 15 minutes\":\n    - DO NOT use a sliding window.\n    - Always select the LAST FULLY COMPLETED 15-minute slot before the current time.\n    - Example:\n    Current time: 12:07 PM\n    Last completed slot: \"11.45 AM - 12.00 PM\"\n    - Example:\n    Current time: 06:32 AM\n    Last completed slot: \"06.15 AM - 06.30 AM\"\n3. Never return a partially completed slot.\n    \n    FORMAT RULES:\n    \n- Format interval exactly as:\n\"06.15 AM - 06.30 AM\"\n- Use dot between hour and minute.\n- Always compute valid chronological interval.\n\ntask_log:\n\n- User is adding a planned task.\n- Extract:\n    - task description\n    - time_required_minutes (INTEGER only)\n    - category (MUST match one of allowed categories exactly)\n- If time not provided → estimate reasonably in integer minutes.\n- Category MUST be one of:\n    \n    \"Personal\"\n    \"Financial Growth and Stability\"\n    \"Cognizant\"\n    \"InnovateIT Labs\"\n    \"Family and Friends\"\n    \"Others\"\n    \n\nfinance_log:\n\n- Extract amount as INTEGER only.\n- No currency symbols.\n- Date:\n    - If user provides → use it.\n    - Otherwise use current date.\n- Do not invent categories.\n\nreminder_set:\n\n- Extract clear task.\n- Extract date and time.\n- If missing → infer from context.\n- Time format:\n\"HH:MM AM/PM\"\n\nreminder_review:\n\n- Triggered when user asks about reminders.\n- No task extraction required.\n\ncalorie_log:\n\n- Extract food_item.\n- Extract quantity in grams (INTEGER only).\n- If quantity given in units (e.g., 2 bananas), estimate grams.\n- Estimate calories based on Indian food standards.\n- Calories must be INTEGER.\n- Date:\n    - Use provided date.\n    - Otherwise current date.\n\nanalytics_query:\n\n- User asking for summary, patterns, totals, trends.\n- domain must be one of:\n\"activity\", \"task\", \"finance\", \"calorie\", \"reminder\"\n- time_range:\n    - Use user-provided range.\n    - If missing → infer from context.\n- metric:\n    - Examples:\n    \"total_spent\"\n    \"calories_total\"\n    \"time_spent\"\n    \"pattern_analysis\"\n    \"task_completion_rate\"\n\n---\n\n## OUTPUT RULES\n\n- Return ONLY valid JSON.\n- No explanations.\n- No markdown.\n- No comments.\n- All unused sections must contain empty strings.\n- All numeric fields must be integers.\n- All dates format: YYYY-MM-DD\n- All time intervals strictly:\n\"[HH.MM](http://hh.mm/) AM - [HH.MM](http://hh.mm/) PM\"\n\n---\n\n## OUTPUT FORMAT\n\n{\n\"transcription\": \"\",\n\"intent\": \"\",\n\n\"activity_log\": {\n\"time_interval\": \"\",\n\"description\": \"\"\n},\n\n\"task_log\": {\n\"task\": \"\",\n\"time_required_minutes\": \"\",\n\"category\": \"\"\n},\n\n\"finance_log\": {\n\"amount\": \"\",\n\"note\": \"\",\n\"date\": \"\"\n},\n\n\"reminder\": {\n\"task\": \"\",\n\"date\": \"\",\n\"time\": \"\"\n},\n\n\"calorie_log\": {\n\"food_item\": \"\",\n\"quantity\": \"\",\n\"calories\": \"\",\n\"date\": \"\"\n},\n\n\"analytics_query\": {\n\"domain\": \"\",\n\"time_range\": \"\",\n\"metric\": \"\"\n}\n}",
+        "inputType": "binary",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -928,
+        368
+      ],
+      "id": "6cf732dc-2c9b-4bef-a2aa-f3015c4d63bc",
+      "name": "Analyze audio2",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "yFClJdpFmRSt7fIq",
+          "name": "Google Gemini(PaLM) Api account InnovateIT Labs"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "text": "=You are a structured personal operating system.\n\nCurrent date and time:\n{{ $now }}\n\nYour job:\n\n1. Transcribe the audio exactly.\n2. Classify the intent into ONE of the following:\n- \"activity_log\"\n- \"task_log\"\n- \"finance_log\"\n- \"reminder_set\"\n- \"reminder_review\"\n- \"calorie_log\"\n- \"analytics_query\"\n1. Extract structured data strictly according to the rules below.\n\n---\n\n## INTENT RULES.\n\nactivity_log:\n\n- User is describing what they did.\n- Time must always be stored as a fixed 15-minute interval.\n- Valid intervals are strict 15-minute blocks of the day.\n\nTIME COMPUTATION RULES:\n\n1. If user mentions exact time:\n    - Compute the corresponding 15-minute slot that contains that time.\n    - Return that full slot.\n2. If user says \"past 15 minutes\":\n    - DO NOT use a sliding window.\n    - Always select the LAST FULLY COMPLETED 15-minute slot before the current time.\n    - Example:\n    Current time: 12:07 PM\n    Last completed slot: \"11.45 AM - 12.00 PM\"\n    - Example:\n    Current time: 06:32 AM\n    Last completed slot: \"06.15 AM - 06.30 AM\"\n3. Never return a partially completed slot.\n    \n    FORMAT RULES:\n    \n- Format interval exactly as:\n\"06.15 AM - 06.30 AM\"\n- Use dot between hour and minute.\n- Always compute valid chronological interval.\n\ntask_log:\n\n- User is adding a planned task.\n- Extract:\n    - task description\n    - time_required_minutes (INTEGER only)\n    - category (MUST match one of allowed categories exactly)\n- If time not provided → estimate reasonably in integer minutes.\n- Category MUST be one of:\n    \n    \"Personal\"\n    \"Financial Growth and Stability\"\n    \"Cognizant\"\n    \"InnovateIT Labs\"\n    \"Family and Friends\"\n    \"Others\"\n    \n\nfinance_log:\n\n- Extract amount as INTEGER only.\n- No currency symbols.\n- Date:\n    - If user provides → use it.\n    - Otherwise use current date.\n- Do not invent categories.\n\nreminder_set:\n\n- Extract clear task.\n- Extract date and time.\n- If missing → infer from context.\n- Time format:\n\"HH:MM AM/PM\"\n\nreminder_review:\n\n- Triggered when user asks about reminders.\n- No task extraction required.\n\ncalorie_log:\n\n- Extract food_item.\n- Extract quantity in grams (INTEGER only).\n- If quantity given in units (e.g., 2 bananas), estimate grams.\n- Estimate calories based on Indian food standards.\n- Calories must be INTEGER.\n- Date:\n    - Use provided date.\n    - Otherwise current date.\n\nanalytics_query:\n\n- User asking for summary, patterns, totals, trends.\n- domain must be one of:\n\"activity\", \"task\", \"finance\", \"calorie\", \"reminder\"\n- time_range:\n    - Use user-provided range.\n    - If missing → infer from context.\n- metric:\n    - Examples:\n    \"total_spent\"\n    \"calories_total\"\n    \"time_spent\"\n    \"pattern_analysis\"\n    \"task_completion_rate\"\n\n---\n\n## OUTPUT RULES\n\n- Return ONLY valid JSON.\n- No explanations.\n- No markdown.\n- No comments.\n- All unused sections must contain empty strings.\n- All numeric fields must be integers.\n- All dates format: YYYY-MM-DD\n- All time intervals strictly:\n\"[HH.MM](http://hh.mm/) AM - [HH.MM](http://hh.mm/) PM\"\n\n---\n\n## OUTPUT FORMAT\n\n{\n\"transcription\": \"\",\n\"intent\": \"\",\n\n\"activity_log\": {\n\"time_interval\": \"\",\n\"description\": \"\"\n},\n\n\"task_log\": {\n\"task\": \"\",\n\"time_required_minutes\": \"\",\n\"category\": \"\"\n},\n\n\"finance_log\": {\n\"amount\": \"\",\n\"note\": \"\",\n\"date\": \"\"\n},\n\n\"reminder\": {\n\"task\": \"\",\n\"date\": \"\",\n\"time\": \"\"\n},\n\n\"calorie_log\": {\n\"food_item\": \"\",\n\"quantity\": \"\",\n\"calories\": \"\",\n\"date\": \"\"\n},\n\n\"analytics_query\": {\n\"domain\": \"\",\n\"time_range\": \"\",\n\"metric\": \"\"\n}\n}",
+        "inputType": "binary",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -928,
+        560
+      ],
+      "id": "2862a0c5-7124-4d1d-80d7-4b2aeb8905e3",
+      "name": "Analyze audio3",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "yFClJdpFmRSt7fIq",
+          "name": "Google Gemini(PaLM) Api account InnovateIT Labs"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Code1').item.json.randomNumber }}",
+                    "rightValue": 1,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    },
+                    "id": "6761b8c4-02a7-48bc-bddf-c08cb12e781a"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "865044e4-1028-41f5-9374-7eb7dcdb2438",
+                    "leftValue": "={{ $('Code1').item.json.randomNumber }}",
+                    "rightValue": 2,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "4f5230b8-35bf-4914-ae9e-4a2cfc00d068",
+                    "leftValue": "={{ $('Code1').item.json.randomNumber }}",
+                    "rightValue": 3,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6e18806b-4bc9-4a32-ba00-d61c81a46ac4",
+                    "leftValue": "={{ $('Code1').item.json.randomNumber }}",
+                    "rightValue": 4,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "0f1783f7-8df0-4454-b43e-1d45e14d4fdb",
+                    "leftValue": "={{ $('Code1').item.json.randomNumber }}",
+                    "rightValue": 5,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "a98fbc31-3b4e-484e-b374-df295d66a025",
+                    "leftValue": "={{ $('Code1').item.json.randomNumber }}",
+                    "rightValue": 6,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -1152,
+        -48
+      ],
+      "id": "4c3168de-09e0-4f8a-b1fa-c5f6885a922f",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash-lite",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash-lite"
+        },
+        "text": "=You are a structured personal operating system.\n\nCurrent date and time:\n{{ $now }}\n\nYour job:\n\n1. Transcribe the audio exactly.\n2. Classify the intent into ONE of the following:\n- \"activity_log\"\n- \"task_log\"\n- \"finance_log\"\n- \"reminder_set\"\n- \"reminder_review\"\n- \"calorie_log\"\n- \"analytics_query\"\n1. Extract structured data strictly according to the rules below.\n\n---\n\n## INTENT RULES.\n\nactivity_log:\n\n- User is describing what they did.\n- Time must always be stored as a fixed 15-minute interval.\n- Valid intervals are strict 15-minute blocks of the day.\n\nTIME COMPUTATION RULES:\n\n1. If user mentions exact time:\n    - Compute the corresponding 15-minute slot that contains that time.\n    - Return that full slot.\n2. If user says \"past 15 minutes\":\n    - DO NOT use a sliding window.\n    - Always select the LAST FULLY COMPLETED 15-minute slot before the current time.\n    - Example:\n    Current time: 12:07 PM\n    Last completed slot: \"11.45 AM - 12.00 PM\"\n    - Example:\n    Current time: 06:32 AM\n    Last completed slot: \"06.15 AM - 06.30 AM\"\n3. Never return a partially completed slot.\n    \n    FORMAT RULES:\n    \n- Format interval exactly as:\n\"06.15 AM - 06.30 AM\"\n- Use dot between hour and minute.\n- Always compute valid chronological interval.\n\ntask_log:\n\n- User is adding a planned task.\n- Extract:\n    - task description\n    - time_required_minutes (INTEGER only)\n    - category (MUST match one of allowed categories exactly)\n- If time not provided → estimate reasonably in integer minutes.\n- Category MUST be one of:\n    \n    \"Personal\"\n    \"Financial Growth and Stability\"\n    \"Cognizant\"\n    \"InnovateIT Labs\"\n    \"Family and Friends\"\n    \"Others\"\n    \n\nfinance_log:\n\n- Extract amount as INTEGER only.\n- No currency symbols.\n- Date:\n    - If user provides → use it.\n    - Otherwise use current date.\n- Do not invent categories.\n\nreminder_set:\n\n- Extract clear task.\n- Extract date and time.\n- If missing → infer from context.\n- Time format:\n\"HH:MM AM/PM\"\n\nreminder_review:\n\n- Triggered when user asks about reminders.\n- No task extraction required.\n\ncalorie_log:\n\n- Extract food_item.\n- Extract quantity in grams (INTEGER only).\n- If quantity given in units (e.g., 2 bananas), estimate grams.\n- Estimate calories based on Indian food standards.\n- Calories must be INTEGER.\n- Date:\n    - Use provided date.\n    - Otherwise current date.\n\nanalytics_query:\n\n- User asking for summary, patterns, totals, trends.\n- domain must be one of:\n\"activity\", \"task\", \"finance\", \"calorie\", \"reminder\"\n- time_range:\n    - Use user-provided range.\n    - If missing → infer from context.\n- metric:\n    - Examples:\n    \"total_spent\"\n    \"calories_total\"\n    \"time_spent\"\n    \"pattern_analysis\"\n    \"task_completion_rate\"\n\n---\n\n## OUTPUT RULES\n\n- Return ONLY valid JSON.\n- No explanations.\n- No markdown.\n- No comments.\n- All unused sections must contain empty strings.\n- All numeric fields must be integers.\n- All dates format: YYYY-MM-DD\n- All time intervals strictly:\n\"[HH.MM](http://hh.mm/) AM - [HH.MM](http://hh.mm/) PM\"\n\n---\n\n## OUTPUT FORMAT\n\n{\n\"transcription\": \"\",\n\"intent\": \"\",\n\n\"activity_log\": {\n\"time_interval\": \"\",\n\"description\": \"\"\n},\n\n\"task_log\": {\n\"task\": \"\",\n\"time_required_minutes\": \"\",\n\"category\": \"\"\n},\n\n\"finance_log\": {\n\"amount\": \"\",\n\"note\": \"\",\n\"date\": \"\"\n},\n\n\"reminder\": {\n\"task\": \"\",\n\"date\": \"\",\n\"time\": \"\"\n},\n\n\"calorie_log\": {\n\"food_item\": \"\",\n\"quantity\": \"\",\n\"calories\": \"\",\n\"date\": \"\"\n},\n\n\"analytics_query\": {\n\"domain\": \"\",\n\"time_range\": \"\",\n\"metric\": \"\"\n}\n}",
+        "inputType": "binary",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -928,
+        -224
+      ],
+      "id": "ce5ead11-4d3c-4d68-bcb6-cd82a3caa00c",
+      "name": "Analyze audio4",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MR6sPVZLQVif4RNB",
+          "name": "Google Gemini(PaLM) Api account 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3-flash-preview"
+        },
+        "text": "=You are a structured personal operating system.\n\nCurrent date and time:\n{{ $now }}\n\nYour job:\n\n1. Transcribe the audio exactly.\n2. Classify the intent into ONE of the following:\n- \"activity_log\"\n- \"task_log\"\n- \"finance_log\"\n- \"reminder_set\"\n- \"reminder_review\"\n- \"calorie_log\"\n- \"analytics_query\"\n1. Extract structured data strictly according to the rules below.\n\n---\n\n## INTENT RULES.\n\nactivity_log:\n\n- User is describing what they did.\n- Time must always be stored as a fixed 15-minute interval.\n- Valid intervals are strict 15-minute blocks of the day.\n\nTIME COMPUTATION RULES:\n\n1. If user mentions exact time:\n    - Compute the corresponding 15-minute slot that contains that time.\n    - Return that full slot.\n2. If user says \"past 15 minutes\":\n    - DO NOT use a sliding window.\n    - Always select the LAST FULLY COMPLETED 15-minute slot before the current time.\n    - Example:\n    Current time: 12:07 PM\n    Last completed slot: \"11.45 AM - 12.00 PM\"\n    - Example:\n    Current time: 06:32 AM\n    Last completed slot: \"06.15 AM - 06.30 AM\"\n3. Never return a partially completed slot.\n    \n    FORMAT RULES:\n    \n- Format interval exactly as:\n\"06.15 AM - 06.30 AM\"\n- Use dot between hour and minute.\n- Always compute valid chronological interval.\n\ntask_log:\n\n- User is adding a planned task.\n- Extract:\n    - task description\n    - time_required_minutes (INTEGER only)\n    - category (MUST match one of allowed categories exactly)\n- If time not provided → estimate reasonably in integer minutes.\n- Category MUST be one of:\n    \n    \"Personal\"\n    \"Financial Growth and Stability\"\n    \"Cognizant\"\n    \"InnovateIT Labs\"\n    \"Family and Friends\"\n    \"Others\"\n    \n\nfinance_log:\n\n- Extract amount as INTEGER only.\n- No currency symbols.\n- Date:\n    - If user provides → use it.\n    - Otherwise use current date.\n- Do not invent categories.\n\nreminder_set:\n\n- Extract clear task.\n- Extract date and time.\n- If missing → infer from context.\n- Time format:\n\"HH:MM AM/PM\"\n\nreminder_review:\n\n- Triggered when user asks about reminders.\n- No task extraction required.\n\ncalorie_log:\n\n- Extract food_item.\n- Extract quantity in grams (INTEGER only).\n- If quantity given in units (e.g., 2 bananas), estimate grams.\n- Estimate calories based on Indian food standards.\n- Calories must be INTEGER.\n- Date:\n    - Use provided date.\n    - Otherwise current date.\n\nanalytics_query:\n\n- User asking for summary, patterns, totals, trends.\n- domain must be one of:\n\"activity\", \"task\", \"finance\", \"calorie\", \"reminder\"\n- time_range:\n    - Use user-provided range.\n    - If missing → infer from context.\n- metric:\n    - Examples:\n    \"total_spent\"\n    \"calories_total\"\n    \"time_spent\"\n    \"pattern_analysis\"\n    \"task_completion_rate\"\n\n---\n\n## OUTPUT RULES\n\n- Return ONLY valid JSON.\n- No explanations.\n- No markdown.\n- No comments.\n- All unused sections must contain empty strings.\n- All numeric fields must be integers.\n- All dates format: YYYY-MM-DD\n- All time intervals strictly:\n\"[HH.MM](http://hh.mm/) AM - [HH.MM](http://hh.mm/) PM\"\n\n---\n\n## OUTPUT FORMAT\n\n{\n\"transcription\": \"\",\n\"intent\": \"\",\n\n\"activity_log\": {\n\"time_interval\": \"\",\n\"description\": \"\"\n},\n\n\"task_log\": {\n\"task\": \"\",\n\"time_required_minutes\": \"\",\n\"category\": \"\"\n},\n\n\"finance_log\": {\n\"amount\": \"\",\n\"note\": \"\",\n\"date\": \"\"\n},\n\n\"reminder\": {\n\"task\": \"\",\n\"date\": \"\",\n\"time\": \"\"\n},\n\n\"calorie_log\": {\n\"food_item\": \"\",\n\"quantity\": \"\",\n\"calories\": \"\",\n\"date\": \"\"\n},\n\n\"analytics_query\": {\n\"domain\": \"\",\n\"time_range\": \"\",\n\"metric\": \"\"\n}\n}",
+        "inputType": "binary",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -928,
+        -416
+      ],
+      "id": "80b507c5-f4df-4496-bdc1-9a67d6cb18c2",
+      "name": "Analyze audio5",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MR6sPVZLQVif4RNB",
+          "name": "Google Gemini(PaLM) Api account 1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8",
+          "mode": "list",
+          "cachedResultName": "Time Sheet New",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CHExOWXNW96UxPj65pAG0OfxScz5CJc9tdRWS56yBq8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Sheet', ``, 'string') }}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        0,
+        944
+      ],
+      "id": "7fed9990-2495-476e-9d9d-f3a2363dfcd9",
+      "name": "Get row(s) in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "IhMCIGJWsxGsjzwX",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "chatId": "6461971913",
+        "messageId": "={{ $('Send a text message').item.json.result.message_id }}",
+        "text": "=📊 Domain: {{ $json.domain}}\n\n🗓 Period: {{ $json.time_range }}\n📂 Source: {{ $json.sheet_used }}\n\n📈 {{ $json.result_summary }}\n\n💰 Numerical value: {{ $json.numerical_result }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        624
+      ],
+      "id": "f4711abf-d57c-4ab9-8174-003c1703328d",
+      "name": "Edit a text message5",
+      "webhookId": "e05060ce-4197-4525-ad1f-ccba729704a1",
+      "credentials": {
+        "telegramApi": {
+          "id": "l4bf0igSUCFtcD0K",
+          "name": "Agent LIsa Bot"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        896
+      ],
+      "id": "8105e984-f680-4f45-841e-7c8b4fac5548",
+      "name": "Calculator"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import json\n\nitems = _input.all()\ndata = items[0].json\n\n# Step 1: Get raw output string\ntext = data.get(\"output\", \"\")\n\nif not text:\n    return {\n        \"error\": \"No output field found\",\n        \"raw_response\": data\n    }\n\n# Step 2: Remove markdown wrappers\ntext = text.strip()\n\nif text.startswith(\"```\"):\n    text = text.replace(\"```json\", \"\").replace(\"```\", \"\").strip()\n\n# Step 3: Parse JSON\ntry:\n    parsed = json.loads(text)\nexcept Exception as e:\n    return {\n        \"error\": \"Invalid JSON format\",\n        \"raw_output\": text,\n        \"exception\": str(e)\n    }\n\n# Step 4: Return exact structured JSON\nreturn parsed"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -48,
+        576
+      ],
+      "id": "9bf86be2-fc65-4665-b560-82faa4b3b15e",
+      "name": "Code2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a file": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze audio": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Today Date",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Edit a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Edit a text message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Today Date": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet2": {
+      "main": [
+        [
+          {
+            "node": "Edit a text message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Get a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Edit a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet3": {
+      "main": [
+        [
+          {
+            "node": "Edit a text message4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Analyze audio5",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze audio4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze audio1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze audio2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze audio3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze audio1": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze audio4": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze audio5": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze audio2": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze audio3": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculator": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Edit a text message5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "7WPaSA1hPhlBoaMv",
+    "timeSavedPerExecution": 1
+  },
+  "versionId": "20f2d51a-9449-41f8-9fe2-63e5807c363f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1dc7defac500b2fc11c4396b325ea218dac900cb0b452bd7227efb3ec3b60817"
+  },
+  "id": "f0b8U32Q8QqSCvj7",
+  "tags": []
+}
